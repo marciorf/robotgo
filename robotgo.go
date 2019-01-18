@@ -69,7 +69,7 @@ import (
 
 const (
 	// Version get the robotgo version
-	Version string = "v0.60.0.727, Mount Olympus: Mytikas!"
+	Version = "v0.70.0.809, Caloris Montes!"
 )
 
 // GetVersion get the robotgo version
@@ -112,8 +112,13 @@ func Try(fun func(), handler func(interface{})) {
 	fun()
 }
 
-// Sleep time.Sleep
-func Sleep(tm float64) {
+// MilliSleep sleep tm milli second
+func MilliSleep(tm int) {
+	time.Sleep(time.Duration(tm) * time.Millisecond)
+}
+
+// Sleep time.Sleep tm second
+func Sleep(tm int) {
 	time.Sleep(time.Duration(tm) * time.Second)
 }
 
@@ -230,6 +235,12 @@ func Scale() int {
 	return dpi[x]
 }
 
+// Mul mul the scale
+func Mul(x int) int {
+	s := Scale()
+	return x * s / 100
+}
+
 // GetScaleSize get the screen scale size
 func GetScaleSize() (int, int) {
 	x, y := GetScreenSize()
@@ -286,13 +297,7 @@ func CaptureScreen(args ...int) C.MMBitmapRef {
 
 // GoCaptureScreen capture the screen and return bitmap(go struct)
 func GoCaptureScreen(args ...int) Bitmap {
-	var bit C.MMBitmapRef
-
-	if len(args) > 3 {
-		bit = CaptureScreen(args[0], args[1], args[2], args[3])
-	} else {
-		bit = CaptureScreen()
-	}
+	bit := CaptureScreen(args...)
 	defer FreeBitmap(bit)
 
 	return ToBitmap(bit)
@@ -316,6 +321,24 @@ func SaveCapture(spath string, args ...int) {
 
 */
 
+// CheckMouse check the mouse button
+func CheckMouse(btn string) C.MMMouseButton {
+	// button = args[0].(C.MMMouseButton)
+	if btn == "left" {
+		return C.LEFT_BUTTON
+	}
+
+	if btn == "center" {
+		return C.CENTER_BUTTON
+	}
+
+	if btn == "right" {
+		return C.RIGHT_BUTTON
+	}
+
+	return C.LEFT_BUTTON
+}
+
 // MoveMouse move the mouse
 func MoveMouse(x, y int) {
 	// C.size_t  int
@@ -330,15 +353,22 @@ func Move(x, y int) {
 }
 
 // DragMouse drag the mouse
-func DragMouse(x, y int) {
-	Drag(x, y)
+func DragMouse(x, y int, args ...string) {
+	Drag(x, y, args...)
 }
 
 // Drag drag the mouse
-func Drag(x, y int) {
+func Drag(x, y int, args ...string) {
+	var button C.MMMouseButton = C.LEFT_BUTTON
+
 	cx := C.size_t(x)
 	cy := C.size_t(y)
-	C.drag_mouse(cx, cy)
+
+	if len(args) > 0 {
+		button = CheckMouse(args[0])
+	}
+
+	C.drag_mouse(cx, cy, button)
 }
 
 // MoveMouseSmooth move the mouse smooth,
@@ -381,10 +411,10 @@ func MoveSmooth(x, y int, args ...interface{}) bool {
 // GetMousePos get mouse's portion
 func GetMousePos() (int, int) {
 	pos := C.get_mouse_pos()
-	// fmt.Println("pos:###", pos, pos.x, pos.y)
+
 	x := int(pos.x)
 	y := int(pos.y)
-	// return pos.x, pos.y
+
 	return x, y
 }
 
@@ -405,16 +435,7 @@ func Click(args ...interface{}) {
 	)
 
 	if len(args) > 0 {
-		// button = args[0].(C.MMMouseButton)
-		if args[0].(string) == "left" {
-			button = C.LEFT_BUTTON
-		}
-		if args[0].(string) == "center" {
-			button = C.CENTER_BUTTON
-		}
-		if args[0].(string) == "right" {
-			button = C.RIGHT_BUTTON
-		}
+		button = CheckMouse(args[0].(string))
 	}
 
 	if len(args) > 1 {
@@ -443,16 +464,7 @@ func MouseToggle(togKey string, args ...interface{}) {
 	var button C.MMMouseButton = C.LEFT_BUTTON
 
 	if len(args) > 0 {
-		// button = args[1].(C.MMMouseButton)
-		if args[0].(string) == "left" {
-			button = C.LEFT_BUTTON
-		}
-		if args[0].(string) == "center" {
-			button = C.CENTER_BUTTON
-		}
-		if args[0].(string) == "right" {
-			button = C.RIGHT_BUTTON
-		}
+		button = CheckMouse(args[0].(string))
 	}
 
 	down := C.CString(togKey)
@@ -501,11 +513,11 @@ func Scroll(x, y int, args ...int) {
 
 */
 
-// KeyTap tap the keyboard;
+// KeyTap tap the keyboard code;
 //
 // See keys:
 //	https://github.com/go-vgo/robotgo/blob/master/docs/keys.md
-func KeyTap(tapKey string, args ...interface{}) {
+func KeyTap(tapKey string, args ...interface{}) string {
 	var (
 		akey     string
 		keyT     = "null"
@@ -516,11 +528,10 @@ func KeyTap(tapKey string, args ...interface{}) {
 	// var ckeyArr []*C.char
 	ckeyArr := make([](*_Ctype_char), 0)
 
-	Try(func() {
+	if len(args) > 0 {
 		if reflect.TypeOf(args[0]) == reflect.TypeOf(keyArr) {
 
 			keyArr = args[0].([]string)
-
 			num = len(keyArr)
 
 			for i := 0; i < num; i++ {
@@ -542,30 +553,31 @@ func KeyTap(tapKey string, args ...interface{}) {
 			}
 		}
 
-	}, func(e interface{}) {
-		// fmt.Println("err:::", e)
+	} else {
 		akey = "null"
 		keyArr = []string{"null"}
-	})
-	// }()
-
-	zkey := C.CString(tapKey)
-
-	if akey == "" && len(keyArr) != 0 {
-		C.key_Tap(zkey, (**_Ctype_char)(unsafe.Pointer(&ckeyArr[0])),
-			C.int(num), C.int(keyDelay))
-	} else {
-		// zkey := C.CString(args[0])
-		amod := C.CString(akey)
-		amodt := C.CString(keyT)
-
-		C.key_tap(zkey, amod, amodt, C.int(keyDelay))
-
-		defer C.free(unsafe.Pointer(amod))
-		defer C.free(unsafe.Pointer(amodt))
 	}
 
+	// zkey := C.CString(args[0])
+	zkey := C.CString(tapKey)
 	defer C.free(unsafe.Pointer(zkey))
+
+	if akey == "" && len(keyArr) != 0 {
+		str := C.key_Taps(zkey, (**_Ctype_char)(unsafe.Pointer(&ckeyArr[0])),
+			C.int(num), C.int(keyDelay))
+
+		return C.GoString(str)
+	}
+
+	amod := C.CString(akey)
+	amodt := C.CString(keyT)
+
+	str := C.key_tap(zkey, amod, amodt, C.int(keyDelay))
+
+	C.free(unsafe.Pointer(amod))
+	C.free(unsafe.Pointer(amodt))
+
+	return C.GoString(str)
 }
 
 // KeyToggle toggle the keyboard
@@ -595,15 +607,13 @@ func KeyToggle(args ...string) string {
 	cmKey := C.CString(mKey)
 	cmKeyT := C.CString(mKeyT)
 
-	// defer func() {
 	str := C.key_toggle(ckey, cdown, cmKey, cmKeyT)
 	// str := C.key_Toggle(ckey, cdown, cmKey, cmKeyT, C.int(keyDelay))
-	// fmt.Println(str)
-	// }()
-	defer C.free(unsafe.Pointer(ckey))
-	defer C.free(unsafe.Pointer(cdown))
-	defer C.free(unsafe.Pointer(cmKey))
-	defer C.free(unsafe.Pointer(cmKeyT))
+
+	C.free(unsafe.Pointer(ckey))
+	C.free(unsafe.Pointer(cdown))
+	C.free(unsafe.Pointer(cmKey))
+	C.free(unsafe.Pointer(cmKeyT))
 
 	return C.GoString(str)
 }
@@ -935,30 +945,6 @@ func CountBitmap(bitmap, sbit C.MMBitmapRef, args ...float32) int {
 	return int(count)
 }
 
-// FindBit find the bitmap, Wno-deprecated
-func FindBit(args ...interface{}) (int, int) {
-	var bit C.MMBitmapRef
-	bit = args[0].(C.MMBitmapRef)
-
-	var rect C.MMRect
-	Try(func() {
-		rect.origin.x = C.size_t(args[1].(int))
-		rect.origin.y = C.size_t(args[2].(int))
-		rect.size.width = C.size_t(args[3].(int))
-		rect.size.height = C.size_t(args[4].(int))
-	}, func(e interface{}) {
-		// fmt.Println("err:::", e)
-		// rect.origin.x = x
-		// rect.origin.y = y
-		// rect.size.width = w
-		// rect.size.height = h
-	})
-
-	pos := C.aFindBitmap(bit, rect)
-	// fmt.Println("pos----", pos)
-	return int(pos.x), int(pos.y)
-}
-
 // BitmapClick find the bitmap and click
 func BitmapClick(bitmap C.MMBitmapRef, args ...interface{}) {
 	x, y := FindBitmap(bitmap)
@@ -1094,6 +1080,13 @@ func GetColor(bitmap C.MMBitmapRef, x, y int) C.MMRGBHex {
 	color := C.bitmap_get_color(bitmap, C.size_t(x), C.size_t(y))
 
 	return color
+}
+
+// GetColors get bitmap color retrun string
+func GetColors(bitmap C.MMBitmapRef, x, y int) string {
+	clo := GetColor(bitmap, x, y)
+
+	return PadHex(clo)
 }
 
 // FindColor find bitmap color
@@ -1232,6 +1225,7 @@ func AddEvent(key string) int {
 		"space":   "57",
 		"shift":   "42",
 		"enter":   "28",
+		"cmd":     "3675",
 		"command": "3675",
 	}
 
@@ -1299,10 +1293,10 @@ func ShowAlert(title, msg string, args ...string) int {
 	cbool := C.show_alert(atitle, amsg, adefaultButton, acancelButton)
 	ibool := int(cbool)
 
-	defer C.free(unsafe.Pointer(atitle))
-	defer C.free(unsafe.Pointer(amsg))
-	defer C.free(unsafe.Pointer(adefaultButton))
-	defer C.free(unsafe.Pointer(acancelButton))
+	C.free(unsafe.Pointer(atitle))
+	C.free(unsafe.Pointer(amsg))
+	C.free(unsafe.Pointer(adefaultButton))
+	C.free(unsafe.Pointer(acancelButton))
 
 	return ibool
 }
@@ -1551,7 +1545,8 @@ func FindNames() ([]string, error) {
 	return strArr, err
 }
 
-// FindIds finds the all processes named with a subset of "name" (case insensitive),
+// FindIds finds the all processes named with a subset
+// of "name" (case insensitive),
 // return matched IDs.
 func FindIds(name string) ([]int32, error) {
 	var pids []int32

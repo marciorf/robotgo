@@ -19,15 +19,15 @@ import (
 
 func typeStr() {
 	// importing "Hello World"
-	robotgo.TypeString("Hello World")
+	robotgo.TypeStr("Hello World")
 
-	robotgo.TypeString("留给真爱你的人")
-	robotgo.MicroSleep(1)
+	robotgo.TypeStr("留给真爱你的人")
+	robotgo.MicroSleep(10.2)
 
 	robotgo.TypeStr("山达尔星新星军团, galaxy. こんにちは世界.")
-	robotgo.Sleep(1)
-	robotgo.TypeStr("所以, 你好, 再见")
-	robotgo.Sleep(1)
+	robotgo.Sleep(2)
+	robotgo.TypeString("所以, 你好, 再见")
+	robotgo.MilliSleep(100)
 
 	ustr := uint32(robotgo.CharCodeAt("所以, 你好, 再见", 0))
 	robotgo.UnicodeType(ustr)
@@ -38,31 +38,44 @@ func typeStr() {
 func keyTap() {
 	// press "enter"
 	robotgo.KeyTap("enter")
-	robotgo.KeyTap("a", "control")
+	robotgo.KeyTap("a")
+	robotgo.KeyTap("a", "ctrl")
+
 	// hide window
-	robotgo.KeyTap("h", "command")
-	robotgo.KeyTap("h", "command", 12)
+	err := robotgo.KeyTap("h", "cmd")
+	if err == "" {
+		fmt.Println("robotgo.KeyTap run error is nil.")
+	}
+
+	robotgo.KeyTap("h", "cmd", 12)
 
 	// press "i", "alt", "command" Key combination
 	robotgo.KeyTap("i", "alt", "command")
 	robotgo.KeyTap("i", "alt", "command", 11)
-	arr := []string{"alt", "command"}
+
+	arr := []string{"alt", "cmd"}
 	robotgo.KeyTap("i", arr)
 	robotgo.KeyTap("i", arr, 12)
 
 	// close window
-	robotgo.KeyTap("w", "command")
+	robotgo.KeyTap("w", "cmd")
+
 	// minimize window
-	robotgo.KeyTap("m", "command")
-	robotgo.KeyTap("f1", "control")
+	robotgo.KeyTap("m", "cmd")
+
+	robotgo.KeyTap("f1", "ctrl")
 	robotgo.KeyTap("a", "control")
 }
 
 func keyToggle() {
 	robotgo.KeyToggle("a", "down")
 	robotgo.KeyToggle("a", "down", "alt")
-	robotgo.KeyToggle("a", "down", "alt", "command")
-	robotgo.KeyToggle("enter", "down")
+	robotgo.KeyToggle("a", "down", "alt", "cmd")
+
+	err := robotgo.KeyToggle("enter", "down")
+	if err == "" {
+		fmt.Println("robotgo.KeyToggle run error is nil.")
+	}
 }
 
 func cilp() {
